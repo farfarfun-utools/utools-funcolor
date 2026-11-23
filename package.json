@@ -1,0 +1,64 @@
+{
+  "name": "@farfarfun/utools-funcolor",
+  "funbuild": { "build": "sh build.sh" },
+  "version": "0.1.0",
+  "description": "拾色生花 FunColor：离线 uTools 颜色助手与配色工作室，支持屏幕/图片取色、全格式转换（HEX/RGB/HSL/HSV/CMYK/OKLCH/SwiftUI/Flutter）、色阶配色、渐变工坊、WCAG 对比度、色盲模拟与中国传统色库",
+  "license": "MIT",
+  "homepage": "https://farfarfun.github.io/packages/utools-funcolor/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/farfarfun-utools/utools-funcolor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/farfarfun-utools/utools-funcolor/issues"
+  },
+  "keywords": [
+    "utools",
+    "utools-plugin",
+    "funcolor",
+    "color",
+    "color-picker",
+    "palette",
+    "gradient",
+    "oklch",
+    "wcag",
+    "contrast",
+    "color-blindness",
+    "vue3",
+    "typescript",
+    "farfarfun"
+  ],
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "lint": "eslint .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "screenshots": "pnpm build && node scripts/screenshots.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.10.2",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/test-utils": "^2.5.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-vue": "^10.11.1",
+    "globals": "^17.13.0",
+    "jsdom": "^30.1.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12",
+    "vue-tsc": "^3.3.12"
+  }
+}

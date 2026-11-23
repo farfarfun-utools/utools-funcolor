@@ -1,0 +1,145 @@
+{
+  "pluginName": "拾色生花",
+  "version": "0.1.0",
+  "description": "拾色生花 FunColor：离线颜色助手与配色工作室，支持屏幕/图片取色、全格式转换、色阶配色、渐变工坊、WCAG 对比度、色盲模拟与中国传统色库",
+  "author": "farfarfun",
+  "main": "dist/index.html",
+  "preload": "preload.js",
+  "logo": "logo.png",
+  "pluginSetting": {
+    "height": 720
+  },
+  "platform": [
+    "darwin",
+    "win32",
+    "linux"
+  ],
+  "features": [
+    {
+      "code": "funcolor",
+      "explain": "打开拾色生花颜色助手与配色工作室",
+      "cmds": [
+        "拾色生花",
+        "FunColor",
+        "颜色助手",
+        "配色",
+        "色卡"
+      ]
+    },
+    {
+      "code": "color-pick",
+      "explain": "启动屏幕吸管取色并自动复制色值",
+      "cmds": [
+        "屏幕取色",
+        "取色",
+        "吸管"
+      ]
+    },
+    {
+      "code": "color-regex",
+      "explain": "识别色值并查看格式转换与配色方案",
+      "cmds": [
+        {
+          "type": "regex",
+          "label": "颜色转换与配色",
+          "match": "/^\\s*(?:#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgba?\\([^)]{3,40}\\)|hsla?\\([^)]{3,40}\\)|oklch\\([^)]{3,50}\\))\\s*$/i",
+          "minLength": 4
+        }
+      ]
+    },
+    {
+      "code": "color-files",
+      "explain": "打开图片提取主题配色与像素取色",
+      "cmds": [
+        {
+          "type": "files",
+          "label": "从图片提取配色",
+          "fileType": "file",
+          "match": "/\\.(png|jpe?g|webp|gif|bmp|avif)$/i",
+          "minLength": 1,
+          "maxLength": 1
+        }
+      ]
+    },
+    {
+      "code": "color-over",
+      "explain": "解析选中文本中的色值或配色",
+      "cmds": [
+        {
+          "type": "over",
+          "label": "用拾色生花解析颜色",
+          "minLength": 3,
+          "maxLength": 200
+        }
+      ]
+    }
+  ],
+  "tools": {
+    "convert_color": {
+      "description": "离线将任意颜色字符串（HEX / RGB / HSL / HSV / CMYK / OKLCH / CSS 色名）转换为全格式色值与代码片段。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "type": "string",
+            "description": "颜色值，例如 #EC4899、rgb(236, 72, 153)、hsl(330, 81%, 60%) 或 oklch(0.65 0.21 354)"
+          }
+        },
+        "required": [
+          "color"
+        ]
+      }
+    },
+    "check_contrast": {
+      "description": "离线计算前景色与背景色的 WCAG 2.1 对比度、AA/AAA 评级与 APCA Lc，并在不达标时给出最近的可访问修复建议色。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "foreground": {
+            "type": "string",
+            "description": "前景色（文字颜色），如 #EC4899"
+          },
+          "background": {
+            "type": "string",
+            "description": "背景色，如 #FFFFFF"
+          }
+        },
+        "required": [
+          "foreground",
+          "background"
+        ]
+      }
+    },
+    "generate_palette": {
+      "description": "基于基准色离线生成 11 级 Tailwind 色阶（50–950）与和谐配色方案（互补、类似、三角色、分裂互补、四角色、单色）。",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "type": "string",
+            "description": "基准颜色值，如 #EC4899"
+          },
+          "harmony": {
+            "type": "string",
+            "enum": [
+              "all",
+              "complementary",
+              "analogous",
+              "triadic",
+              "split-complementary",
+              "tetradic",
+              "monochromatic"
+            ],
+            "description": "配色规则，默认 all"
+          }
+        },
+        "required": [
+          "color"
+        ]
+      }
+    }
+  }
+}
