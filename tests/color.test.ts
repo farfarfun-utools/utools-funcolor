@@ -30,7 +30,7 @@ import {
   GRADIENT_PRESETS,
 } from '../src/lib/palette'
 import { createDefaultState, pushColorHistory } from '../src/lib/storage'
-import { SWATCH_COLLECTIONS } from '../src/lib/swatches'
+import { findNearestSwatch, SWATCH_COLLECTIONS } from '../src/lib/swatches'
 
 describe('color parsing and conversions', () => {
   it('parses HEX, RGB, RGBA, HSL, HSV, CMYK, OKLCH, and named colors', () => {
@@ -160,7 +160,8 @@ describe('WCAG contrast, APCA, auto-fix, and color blindness', () => {
   })
 
   it('provides curated offline swatch collections and deduplicates history', () => {
-    expect(SWATCH_COLLECTIONS).toHaveLength(4)
+    expect(SWATCH_COLLECTIONS).toHaveLength(7)
+    expect(findNearestSwatch({ r: 236, g: 72, b: 153 })?.hex).toBe('#EC4899')
     const defaults = createDefaultState()
     const next = pushColorHistory(defaults.history, '#10B981')
     expect(next[0]).toBe('#10B981')

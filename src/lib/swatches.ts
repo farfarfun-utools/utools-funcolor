@@ -5,7 +5,14 @@ export interface NamedSwatch {
   note?: string
 }
 
-export type SwatchCollectionId = 'chinese' | 'tailwind' | 'morandi' | 'material'
+export type SwatchCollectionId =
+  | 'chinese'
+  | 'japanese'
+  | 'tailwind'
+  | 'antdesign'
+  | 'morandi'
+  | 'material'
+  | 'flatui'
 
 export interface SwatchCollection {
   id: SwatchCollectionId
@@ -44,6 +51,25 @@ export const SWATCH_COLLECTIONS: SwatchCollection[] = [
       { nameZh: '月白', nameEn: 'Yuebai', hex: '#D6ECF0', note: '月光微蓝' },
       { nameZh: '茶白', nameEn: 'Chabai', hex: '#F3F9F1', note: '清茶素白' },
       { nameZh: '玄青', nameEn: 'Xuanqing', hex: '#3D3B4F', note: '深黑泛青' },
+    ],
+  },
+  {
+    id: 'japanese',
+    labelZh: '日本传统色',
+    labelEn: 'Japanese',
+    items: [
+      { nameZh: '樱色', nameEn: 'Sakura', hex: '#FEDFE1', note: '淡雅樱粉' },
+      { nameZh: '抚子', nameEn: 'Nadeshiko', hex: '#DC9FB4', note: '柔润粉红' },
+      { nameZh: '茜色', nameEn: 'Akane', hex: '#B7282E', note: '暮霞深红' },
+      { nameZh: '山吹', nameEn: 'Yamabuki', hex: '#F8B500', note: '金黄灿烂' },
+      { nameZh: '萌黄', nameEn: 'Moegi', hex: '#AACF53', note: '春芽嫩绿' },
+      { nameZh: '若竹', nameEn: 'Wakatake', hex: '#68BE8D', note: '新篁青绿' },
+      { nameZh: '浅葱', nameEn: 'Asagi', hex: '#33A6B8', note: '清澈青蓝' },
+      { nameZh: '空色', nameEn: 'Sora', hex: '#A0D8EF', note: '晴空淡蓝' },
+      { nameZh: '瑠璃', nameEn: 'Ruri', hex: '#1E50A2', note: '宝石深蓝' },
+      { nameZh: '藤色', nameEn: 'Fuji', hex: '#BBBCDE', note: '紫藤淡韵' },
+      { nameZh: '菖蒲', nameEn: 'Ayame', hex: '#674598', note: '典雅紫韵' },
+      { nameZh: '墨色', nameEn: 'Sumi', hex: '#333631', note: '松烟浓墨' },
     ],
   },
   {
@@ -109,4 +135,62 @@ export const SWATCH_COLLECTIONS: SwatchCollection[] = [
       { nameZh: 'Surface Light', nameEn: 'Surface Light', hex: '#FFFBFE' },
     ],
   },
+  {
+    id: 'antdesign',
+    labelZh: 'Ant Design',
+    labelEn: 'Ant Design',
+    items: [
+      { nameZh: '拂晓蓝', nameEn: 'Daybreak Blue', hex: '#1677FF' },
+      { nameZh: '极客蓝', nameEn: 'Geek Blue', hex: '#2F54EB' },
+      { nameZh: '明青', nameEn: 'Cyan', hex: '#13C2C2' },
+      { nameZh: '极光绿', nameEn: 'Polar Green', hex: '#52C41A' },
+      { nameZh: '青柠', nameEn: 'Lime', hex: '#A0D911' },
+      { nameZh: '日出黄', nameEn: 'Sunrise Yellow', hex: '#FADB14' },
+      { nameZh: '金盏花', nameEn: 'Calendula Gold', hex: '#FAAD14' },
+      { nameZh: '日暮橘', nameEn: 'Sunset Orange', hex: '#FA8C16' },
+      { nameZh: '火山红', nameEn: 'Volcano', hex: '#FA541C' },
+      { nameZh: '薄暮红', nameEn: 'Dust Red', hex: '#F5222D' },
+      { nameZh: '法式洋红', nameEn: 'Magenta', hex: '#EB2F96' },
+      { nameZh: '酱紫', nameEn: 'Golden Purple', hex: '#722ED1' },
+    ],
+  },
+  {
+    id: 'flatui',
+    labelZh: 'Flat UI',
+    labelEn: 'Flat UI',
+    items: [
+      { nameZh: 'Turquoise', nameEn: 'Turquoise', hex: '#1ABC9C' },
+      { nameZh: 'Emerald', nameEn: 'Emerald', hex: '#2ECC71' },
+      { nameZh: 'Peter River', nameEn: 'Peter River', hex: '#3498DB' },
+      { nameZh: 'Amethyst', nameEn: 'Amethyst', hex: '#9B59B6' },
+      { nameZh: 'Wet Asphalt', nameEn: 'Wet Asphalt', hex: '#34495E' },
+      { nameZh: 'Sun Flower', nameEn: 'Sun Flower', hex: '#F1C40F' },
+      { nameZh: 'Carrot', nameEn: 'Carrot', hex: '#E67E22' },
+      { nameZh: 'Alizarin', nameEn: 'Alizarin', hex: '#E74C3C' },
+      { nameZh: 'Clouds', nameEn: 'Clouds', hex: '#ECF0F1' },
+      { nameZh: 'Concrete', nameEn: 'Concrete', hex: '#95A5A6' },
+    ],
+  },
 ]
+
+export function findNearestSwatch(rgb: { r: number; g: number; b: number }): NamedSwatch | null {
+  let best: NamedSwatch | null = null
+  let bestDist = Infinity
+  for (const col of SWATCH_COLLECTIONS) {
+    for (const item of col.items) {
+      const hex = item.hex.slice(1)
+      const r = Number.parseInt(hex.slice(0, 2), 16)
+      const g = Number.parseInt(hex.slice(2, 4), 16)
+      const b = Number.parseInt(hex.slice(4, 6), 16)
+      const dr = r - rgb.r
+      const dg = g - rgb.g
+      const db = b - rgb.b
+      const dist = dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11
+      if (dist < bestDist) {
+        bestDist = dist
+        best = item
+      }
+    }
+  }
+  return best
+}

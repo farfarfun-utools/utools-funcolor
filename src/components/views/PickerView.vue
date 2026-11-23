@@ -11,6 +11,8 @@ import {
   round,
   type RgbaColor,
 } from '../../lib/color'
+import { compositeOver, contrastRatio, relativeLuminance } from '../../lib/contrast'
+import { findNearestSwatch } from '../../lib/swatches'
 import type { Locale } from '../../lib/i18n'
 
 const props = defineProps<{
@@ -41,7 +43,6 @@ watch(
   (next) => {
     if (!isDraggingSv.value) {
       const nextHsv = rgbToHsv(next)
-      // Preserve hue when saturation or value hits 0 so dragging doesn't jump hue to 0
       if (nextHsv.s === 0 || nextHsv.v === 0) {
         hsv.value = { ...nextHsv, h: hsv.value.h }
       } else {
@@ -60,6 +61,15 @@ const huePureColor = computed(() => `hsl(${Math.round(hsv.value.h)}, 100%, 50%)`
 const rgbaCss = computed(
   () => `rgba(${props.color.r}, ${props.color.g}, ${props.color.b}, ${round(props.color.a, 2)})`,
 )
+
+// Composite against white backdrop when transparent to pick crisp contrasting text
+const effectiveBg = computed(() =>
+  props.color.a < 1 ? compositeOver(props.color, { r: 245, g: 247, b: 250, a: 1 }) : props.color,
+)
+const isLightSurface = computed(() => relativeLuminance(effectiveBg.value) > 0.36)
+const whiteRatio = computed(() => contrastRatio({ r: 255, g: 255, b: 255, a: 1 }, effectiveBg.value))
+const blackRatio = computed(() => contrastRatio({ r: 15, g: 23, b: 42, a: 1 }, effectiveBg.value))
+const nearestSwatch = computed(() => findNearestSwatch(props.color))
 
 const formats = computed(() => {
   const all = formatAllColorFormats(props.color)
@@ -314,49 +324,73 @@ function selectQuickHex(hex: string) {
       </div>
     </section>
 
-    <!-- Right column: All-Format Converter -->
-    <section class="picker-right card">
-      <div class="panel-head">
-        <div>
-          <h2 class="section-title">{{ locale === 'en' ? 'All-Format Color Codes' : '全格式色值转换' }}</h2>
-          <p class="panel-sub">
-            {{ locale === 'en' ? 'Click any row to copy immediately' : '点击任意格式卡片即可一键复制' }}
-          </p>
+    <!-- Right column: Full-bleed Live Color Immersion + All-Format Converter -->
+    <section
+      class="picker-right checker-bg"
+      :class="isLightSurface ? 'surface-light' : 'surface-dark'"
+      data-testid="live-color-stage"
+    >
+      <div class="live-stage-fill" :style="{ backgroundColor: rgbaCss }">
+        <!-- Hero live preview header -->
+        <div class="hero-header">
+          <div class="hero-main">
+            <button
+              type="button"
+              class="hero-hex mono"
+              :title="locale === 'en' ? 'Click to copy HEX' : '点击复制 HEX'"
+              @click="emit('copy', color.a < 1 ? rgbaToHex(color, true) : activeHex, 'HEX')"
+            >
+              {{ color.a < 1 ? rgbaToHex(color, true) : activeHex }}
+            </button>
+            <div class="hero-badges">
+              <span v-if="nearestSwatch" class="glass-pill">
+                ≈ {{ locale === 'en' ? nearestSwatch.nameEn : nearestSwatch.nameZh }}
+              </span>
+              <span class="glass-pill mono" :title="locale === 'en' ? 'Contrast vs White' : '相对白色对比度'">
+                白 {{ whiteRatio.toFixed(1) }}:1
+              </span>
+              <span class="glass-pill mono" :title="locale === 'en' ? 'Contrast vs Black' : '相对深色对比度'">
+                黑 {{ blackRatio.toFixed(1) }}:1
+              </span>
+            </div>
+          </div>
+
+          <div class="glass-seg">
+            <button
+              v-for="tab in [
+                { id: 'all', zh: '全部', en: 'All' },
+                { id: 'css', zh: 'CSS', en: 'CSS' },
+                { id: 'model', zh: '色彩', en: 'Model' },
+                { id: 'code', zh: '代码', en: 'Code' },
+              ]"
+              :key="tab.id"
+              type="button"
+              class="glass-seg-btn"
+              :class="{ active: formatGroup === tab.id }"
+              @click="formatGroup = tab.id as typeof formatGroup"
+            >
+              {{ locale === 'en' ? tab.en : tab.zh }}
+            </button>
+          </div>
         </div>
-        <div class="seg-group">
+
+        <!-- Translucent format list over the live color -->
+        <div class="format-list">
           <button
-            v-for="tab in [
-              { id: 'all', zh: '全部', en: 'All' },
-              { id: 'css', zh: 'CSS', en: 'CSS' },
-              { id: 'model', zh: '色彩空间', en: 'Model' },
-              { id: 'code', zh: '代码', en: 'Code' },
-            ]"
-            :key="tab.id"
+            v-for="item in formats"
+            :key="item.id"
             type="button"
-            class="seg-btn"
-            :class="{ active: formatGroup === tab.id }"
-            @click="formatGroup = tab.id as typeof formatGroup"
+            class="format-row"
+            :title="locale === 'en' ? `Copy ${item.label}` : `复制 ${item.label}`"
+            @click="emit('copy', item.value, item.label)"
           >
-            {{ locale === 'en' ? tab.en : tab.zh }}
+            <span class="format-tag">{{ item.label }}</span>
+            <span class="format-val mono">{{ item.value }}</span>
+            <span class="format-copy">
+              <AppIcon name="copy" :size="13" />
+            </span>
           </button>
         </div>
-      </div>
-
-      <div class="format-list">
-        <button
-          v-for="item in formats"
-          :key="item.id"
-          type="button"
-          class="format-row"
-          :title="locale === 'en' ? `Copy ${item.label}` : `复制 ${item.label}`"
-          @click="emit('copy', item.value, item.label)"
-        >
-          <span class="format-tag">{{ item.label }}</span>
-          <span class="format-val mono">{{ item.value }}</span>
-          <span class="format-copy">
-            <AppIcon name="copy" :size="13" />
-          </span>
-        </button>
       </div>
     </section>
   </div>
@@ -365,7 +399,7 @@ function selectQuickHex(hex: string) {
 <style scoped>
 .picker-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 274px minmax(0, 1fr);
   gap: 12px;
   height: 100%;
   min-height: 0;
@@ -602,32 +636,130 @@ function selectQuickHex(hex: string) {
   box-shadow: 0 0 0 2px var(--bg-panel), 0 0 0 3.5px var(--accent);
 }
 
+/* Full-bleed live color immersion right pane */
 .picker-right {
-  display: flex;
-  flex-direction: column;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
   min-height: 0;
-  padding: 12px;
-  gap: 10px;
+  display: flex;
 }
 
-.panel-head {
+.picker-right.surface-dark {
+  --stage-fg: #ffffff;
+  --stage-muted: rgba(255, 255, 255, 0.8);
+  --stage-glass: rgba(15, 23, 42, 0.22);
+  --stage-glass-hover: rgba(15, 23, 42, 0.36);
+  --stage-border: rgba(255, 255, 255, 0.22);
+  --stage-seg-active: rgba(255, 255, 255, 0.24);
+}
+
+.picker-right.surface-light {
+  --stage-fg: #0f172a;
+  --stage-muted: rgba(15, 23, 42, 0.72);
+  --stage-glass: rgba(255, 255, 255, 0.42);
+  --stage-glass-hover: rgba(255, 255, 255, 0.65);
+  --stage-border: rgba(15, 23, 42, 0.14);
+  --stage-seg-active: rgba(255, 255, 255, 0.75);
+}
+
+.live-stage-fill {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  padding: 14px;
+  gap: 10px;
+  color: var(--stage-fg);
+}
+
+.hero-header {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.panel-sub {
-  margin: 2px 0 0;
+.hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hero-hex {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--stage-fg);
+  text-align: left;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 6px;
+  transition: background 0.14s;
+}
+
+.hero-hex:hover {
+  background: var(--stage-glass);
+}
+
+.hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.glass-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--stage-glass);
+  border: 1px solid var(--stage-border);
+  color: var(--stage-fg);
+  font-size: 10.5px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+
+.glass-seg {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--stage-glass);
+  border: 1px solid var(--stage-border);
+  gap: 2px;
+  backdrop-filter: blur(6px);
+}
+
+.glass-seg-btn {
+  height: 23px;
+  padding: 0 8px;
+  border-radius: 5px;
   font-size: 11px;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--stage-muted);
+  transition: background 0.14s, color 0.14s;
+}
+
+.glass-seg-btn.active {
+  background: var(--stage-seg-active);
+  color: var(--stage-fg);
+}
+
+.glass-seg-btn:hover:not(.active) {
+  color: var(--stage-fg);
 }
 
 .format-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   overflow-y: auto;
   padding-right: 2px;
   min-height: 0;
@@ -636,31 +768,33 @@ function selectQuickHex(hex: string) {
 
 .format-row {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) 24px;
+  grid-template-columns: 78px minmax(0, 1fr) 22px;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--bg-subtle);
+  padding: 6.5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--stage-border);
+  background: var(--stage-glass);
+  backdrop-filter: blur(8px);
+  color: var(--stage-fg);
   text-align: left;
-  transition: border-color 0.15s, background 0.15s;
+  transition: background 0.14s, transform 0.12s;
 }
 
 .format-row:hover {
-  border-color: var(--accent);
-  background: var(--bg-active);
+  background: var(--stage-glass-hover);
 }
 
 .format-tag {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--stage-muted);
 }
 
 .format-val {
   font-size: 12px;
-  color: var(--text-primary);
+  font-weight: 500;
+  color: var(--stage-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -669,11 +803,11 @@ function selectQuickHex(hex: string) {
 .format-copy {
   display: inline-flex;
   justify-content: flex-end;
-  color: var(--text-muted);
+  color: var(--stage-muted);
 }
 
 .format-row:hover .format-copy {
-  color: var(--accent);
+  color: var(--stage-fg);
 }
 
 @media (max-width: 680px) {
