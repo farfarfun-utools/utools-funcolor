@@ -2,6 +2,7 @@ import {
   clamp,
   hslToRgb,
   oklchToRgb,
+  parseColor,
   rgbaToHex,
   rgbToHsl,
   rgbToOklch,
@@ -178,16 +179,78 @@ export function exportScaleAsJson(scale: ScaleStop[]): string {
   return JSON.stringify(obj, null, 2)
 }
 
+export function sanitizeGradientStopColor(raw: string, fallback = '#EC4899'): string {
+  const parsed = parseColor(raw)
+  if (!parsed) {
+    const fb = parseColor(fallback)
+    return fb ? rgbaToHex(fb, false) : '#EC4899'
+  }
+  return rgbaToHex(parsed, false)
+}
+
+export function randomGradientConfig(): GradientConfig {
+  const baseHue = Math.floor(Math.random() * 360)
+  const spread = 45 + Math.floor(Math.random() * 95)
+  const threeStops = Math.random() > 0.55
+  const types: GradientConfig['type'][] = ['linear', 'linear', 'linear', 'radial', 'conic']
+  const type = types[Math.floor(Math.random() * types.length)]
+  const angle = Math.floor(Math.random() * 24) * 15
+
+  const c1 = rgbaToHex(
+    hslToRgb({ h: baseHue, s: 68 + Math.floor(Math.random() * 22), l: 50 + Math.floor(Math.random() * 14), a: 1 }),
+  )
+  const c2 = rgbaToHex(
+    hslToRgb({
+      h: (baseHue + spread) % 360,
+      s: 68 + Math.floor(Math.random() * 22),
+      l: 48 + Math.floor(Math.random() * 16),
+      a: 1,
+    }),
+  )
+
+  if (!threeStops) {
+    return {
+      type,
+      angle,
+      stops: [
+        { id: `r1-${Date.now().toString(36)}`, color: c1, position: 0 },
+        { id: `r2-${Date.now().toString(36)}`, color: c2, position: 100 },
+      ],
+    }
+  }
+
+  const cMid = rgbaToHex(
+    hslToRgb({
+      h: (baseHue + Math.round(spread * 0.5)) % 360,
+      s: 70 + Math.floor(Math.random() * 20),
+      l: 52 + Math.floor(Math.random() * 14),
+      a: 1,
+    }),
+  )
+  return {
+    type,
+    angle,
+    stops: [
+      { id: `r1-${Date.now().toString(36)}`, color: c1, position: 0 },
+      { id: `r2-${Date.now().toString(36)}`, color: cMid, position: 50 },
+      { id: `r3-${Date.now().toString(36)}`, color: c2, position: 100 },
+    ],
+  }
+}
+
 export function buildGradientCss(config: GradientConfig): string {
   const sorted = [...config.stops].sort((a, b) => a.position - b.position)
-  const stopList = sorted.map((s) => `${s.color} ${clamp(Math.round(s.position), 0, 100)}%`).join(', ')
+  const safeAngle = Number.isFinite(config.angle) ? ((Math.round(config.angle) % 360) + 360) % 360 : 135
+  const stopList = sorted
+    .map((s) => `${sanitizeGradientStopColor(s.color)} ${clamp(Math.round(Number(s.position) || 0), 0, 100)}%`)
+    .join(', ')
   if (config.type === 'radial') {
     return `radial-gradient(circle at center, ${stopList})`
   }
   if (config.type === 'conic') {
-    return `conic-gradient(from ${Math.round(config.angle)}deg at center, ${stopList})`
+    return `conic-gradient(from ${safeAngle}deg at center, ${stopList})`
   }
-  return `linear-gradient(${Math.round(config.angle)}deg, ${stopList})`
+  return `linear-gradient(${safeAngle}deg, ${stopList})`
 }
 
 export const GRADIENT_PRESETS: Array<{ nameZh: string; nameEn: string; config: GradientConfig }> = [

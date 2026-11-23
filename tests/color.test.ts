@@ -4,6 +4,7 @@ import {
   formatAllColorFormats,
   hslToRgb,
   hsvToRgb,
+  nudgeHsv,
   oklchToRgb,
   parseColor,
   rgbaToHex,
@@ -28,6 +29,8 @@ import {
   generateColorScale,
   generateHarmonies,
   GRADIENT_PRESETS,
+  randomGradientConfig,
+  sanitizeGradientStopColor,
 } from '../src/lib/palette'
 import { createDefaultState, pushColorHistory } from '../src/lib/storage'
 import { findNearestSwatch, SWATCH_COLLECTIONS } from '../src/lib/swatches'
@@ -82,6 +85,16 @@ describe('color parsing and conversions', () => {
     expect(map.flutter).toBe('Color(0xFFEC4899)')
     expect(map.android).toBe('<color name="brand">#EC4899</color>')
   })
+
+  it('nudges HSV saturation and value with Arrow keys and Shift+Arrow clamping', () => {
+    const start = { h: 330, s: 50, v: 50, a: 1 }
+    expect(nudgeHsv(start, 'ArrowRight', false)).toEqual({ h: 330, s: 51, v: 50, a: 1 })
+    expect(nudgeHsv(start, 'ArrowLeft', true)).toEqual({ h: 330, s: 40, v: 50, a: 1 })
+    expect(nudgeHsv(start, 'ArrowUp', true)).toEqual({ h: 330, s: 50, v: 60, a: 1 })
+    expect(nudgeHsv({ h: 330, s: 2, v: 98, a: 1 }, 'ArrowLeft', true)?.s).toBe(0)
+    expect(nudgeHsv({ h: 330, s: 2, v: 98, a: 1 }, 'ArrowUp', true)?.v).toBe(100)
+    expect(nudgeHsv(start, 'Escape', false)).toBeNull()
+  })
 })
 
 describe('palettes, gradients, and pixel extraction', () => {
@@ -106,10 +119,26 @@ describe('palettes, gradients, and pixel extraction', () => {
     expect(harmonies[4].colors).toHaveLength(4)
   })
 
-  it('builds linear, radial, and conic CSS gradients', () => {
+  it('builds linear, radial, and conic CSS gradients and sanitizes invalid stops', () => {
     expect(buildGradientCss(GRADIENT_PRESETS[0].config)).toMatch(/^linear-gradient\(135deg,/)
     expect(buildGradientCss(GRADIENT_PRESETS[6].config)).toMatch(/^radial-gradient\(circle at center,/)
     expect(buildGradientCss(GRADIENT_PRESETS[7].config)).toMatch(/^conic-gradient\(from 45deg at center,/)
+
+    expect(sanitizeGradientStopColor('#0ea5e9', '#000000')).toBe('#0EA5E9')
+    expect(sanitizeGradientStopColor('not-valid', '#10B981')).toBe('#10B981')
+    const broken = {
+      type: 'linear' as const,
+      angle: 90,
+      stops: [
+        { id: '1', color: 'invalid', position: 0 },
+        { id: '2', color: '#3b82f6', position: 100 },
+      ],
+    }
+    expect(buildGradientCss(broken)).toBe('linear-gradient(90deg, #EC4899 0%, #3B82F6 100%)')
+
+    const rnd = randomGradientConfig()
+    expect(rnd.stops.length).toBeGreaterThanOrEqual(2)
+    expect(buildGradientCss(rnd)).toMatch(/gradient\(/)
   })
 
   it('extracts dominant distinct colors from RGBA pixel buffer', () => {

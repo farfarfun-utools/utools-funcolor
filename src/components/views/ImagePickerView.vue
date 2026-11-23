@@ -13,7 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:color': [color: RgbaColor, commitHistory?: boolean]
-  'update:image': [dataUrl: string, name: string]
+  'update:image': [dataUrl: string | null, name: string]
   copy: [text: string, label?: string]
   openFile: []
 }>()
@@ -182,6 +182,15 @@ function onDrop(e: DragEvent) {
   reader.readAsDataURL(file)
 }
 
+function resetToDemo() {
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+  hoverHex.value = null
+  hoverCoords.value = null
+  emit('update:image', null, '')
+}
+
 function copyPaletteCss() {
   const lines = palette.value.map((s, idx) => `  --palette-${idx + 1}: ${s.hex};`)
   emit('copy', `:root {\n${lines.join('\n')}\n}`, 'CSS')
@@ -214,6 +223,16 @@ function copyPaletteJson() {
           <AppIcon name="upload" :size="14" />
           {{ locale === 'en' ? 'Open Image' : '导入图片' }}
         </button>
+        <button
+          v-if="imageSrc"
+          type="button"
+          class="btn"
+          data-testid="reset-demo-btn"
+          @click="resetToDemo"
+        >
+          <AppIcon name="refresh-cw" :size="13" />
+          {{ locale === 'en' ? 'Reset Demo' : '恢复示例图' }}
+        </button>
         <input
           ref="fileInputRef"
           type="file"
@@ -221,15 +240,18 @@ function copyPaletteJson() {
           class="sr-only"
           @change="onFileChange"
         />
-        <span class="image-meta">
+        <span class="image-meta" :title="imageSrc ? imageName : ''">
           {{ imageSrc ? imageName : locale === 'en' ? 'Built-in Demo Artwork (paste or drop any image)' : '内置示例画作（支持 Ctrl+V 粘贴或拖入任意图片）' }}
         </span>
       </div>
 
       <div class="image-toolbar-right">
-        <div v-if="hoverHex" class="hover-chip">
+        <div v-if="hoverHex" class="hover-chip" data-testid="hover-pixel-chip">
           <span class="hover-dot" :style="{ backgroundColor: hoverHex }" />
           <span class="mono">{{ hoverHex }}</span>
+          <span v-if="hoverCoords" class="hover-coords mono">
+            ({{ hoverCoords.x }}, {{ hoverCoords.y }})
+          </span>
         </div>
         <div class="seg-group">
           <button
@@ -350,6 +372,11 @@ function copyPaletteJson() {
   height: 12px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.hover-coords {
+  font-size: 10.5px;
+  color: var(--text-muted);
 }
 
 .image-grid {

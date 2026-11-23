@@ -1,5 +1,5 @@
 import type { Locale } from './i18n'
-import { GRADIENT_PRESETS, type GradientConfig } from './palette'
+import { GRADIENT_PRESETS, sanitizeGradientStopColor, type GradientConfig } from './palette'
 
 export type ViewId = 'picker' | 'image' | 'palette' | 'gradient' | 'contrast' | 'library'
 export type ThemeMode = 'system' | 'light' | 'dark'
@@ -122,7 +122,18 @@ export function loadStudioState(): StudioState {
       parsed.gradient &&
       Array.isArray(parsed.gradient.stops) &&
       parsed.gradient.stops.length >= 2
-        ? parsed.gradient
+        ? {
+            type:
+              parsed.gradient.type === 'radial' || parsed.gradient.type === 'conic'
+                ? parsed.gradient.type
+                : ('linear' as const),
+            angle: Number.isFinite(parsed.gradient.angle) ? Math.round(parsed.gradient.angle) : 135,
+            stops: parsed.gradient.stops.slice(0, 6).map((s, idx) => ({
+              id: typeof s?.id === 'string' && s.id ? s.id : `s-${idx + 1}`,
+              color: sanitizeGradientStopColor(typeof s?.color === 'string' ? s.color : '#EC4899'),
+              position: Math.min(100, Math.max(0, Math.round(Number(s?.position) || 0))),
+            })),
+          }
         : fallback.gradient
 
     return {

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AppIcon from '../AppIcon.vue'
-import { rgbaToHex, type RgbaColor } from '../../lib/color'
+import { parseColor, rgbaToHex, type RgbaColor } from '../../lib/color'
 import {
   buildGradientCss,
   GRADIENT_PRESETS,
+  randomGradientConfig,
+  sanitizeGradientStopColor,
   type GradientConfig,
   type GradientStop,
 } from '../../lib/palette'
@@ -21,6 +23,7 @@ const emit = defineEmits<{
   copy: [text: string, label?: string]
 }>()
 
+const invalidStopId = ref<string | null>(null)
 const cssValue = computed(() => buildGradientCss(props.gradient))
 const cssDeclaration = computed(() => `background: ${cssValue.value};`)
 
@@ -35,6 +38,25 @@ function updateConfig(patch: Partial<GradientConfig>) {
 function updateStop(id: string, patch: Partial<GradientStop>) {
   const nextStops = props.gradient.stops.map((s) => (s.id === id ? { ...s, ...patch } : { ...s }))
   updateConfig({ stops: nextStops })
+}
+
+function commitStopColor(stop: GradientStop, inputEl: HTMLInputElement) {
+  const raw = inputEl.value.trim()
+  const parsed = parseColor(raw)
+  if (!parsed) {
+    invalidStopId.value = stop.id
+    inputEl.value = stop.color
+    return
+  }
+  invalidStopId.value = null
+  const clean = sanitizeGradientStopColor(raw, stop.color)
+  inputEl.value = clean
+  updateStop(stop.id, { color: clean })
+}
+
+function handleRandomGradient() {
+  invalidStopId.value = null
+  emit('update:gradient', randomGradientConfig())
 }
 
 function addStop() {
@@ -126,6 +148,15 @@ function useActiveAsFirst() {
             <button type="button" class="btn btn-sm" @click="useActiveAsFirst">
               {{ locale === 'en' ? 'Use Active' : '套用主色' }}
             </button>
+            <button
+              type="button"
+              class="btn btn-sm"
+              data-testid="random-gradient-btn"
+              @click="handleRandomGradient"
+            >
+              <AppIcon name="sparkles" :size="13" />
+              {{ locale === 'en' ? 'Random' : '随机渐变' }}
+            </button>
             <button type="button" class="btn btn-sm" @click="reverseStops">
               <AppIcon name="arrows-left-right" :size="13" />
               {{ locale === 'en' ? 'Reverse' : '反转' }}
@@ -183,7 +214,11 @@ function useActiveAsFirst() {
               type="text"
               :value="stop.color"
               class="input mono stop-hex"
-              @change="updateStop(stop.id, { color: ($event.target as HTMLInputElement).value.trim().toUpperCase() })"
+              :class="{ 'is-error': invalidStopId === stop.id }"
+              :data-testid="`stop-hex-${stop.id}`"
+              @input="invalidStopId = invalidStopId === stop.id ? null : invalidStopId"
+              @keydown.enter="commitStopColor(stop, $event.target as HTMLInputElement)"
+              @change="commitStopColor(stop, $event.target as HTMLInputElement)"
             />
             <input
               type="range"
@@ -384,6 +419,11 @@ function useActiveAsFirst() {
   padding: 0 6px;
   font-size: 11.5px;
   min-width: 0;
+}
+
+.stop-hex.is-error {
+  border-color: var(--err-text);
+  box-shadow: 0 0 0 2px var(--err-bg);
 }
 
 .stop-range {

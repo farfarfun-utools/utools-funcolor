@@ -116,9 +116,25 @@ function pickSwatch(hex: string) {
             v-model="query"
             type="text"
             class="input search-input"
+            data-testid="library-search-input"
             :placeholder="locale === 'en' ? 'Filter by name or HEX...' : '按色名或 HEX 筛选...'"
+            @keydown.escape="query = ''"
           />
+          <button
+            v-if="query"
+            type="button"
+            class="clear-btn"
+            data-testid="library-search-clear"
+            :aria-label="locale === 'en' ? 'Clear filter' : '清空筛选'"
+            :title="locale === 'en' ? 'Clear' : '清空'"
+            @click="query = ''"
+          >
+            <AppIcon name="x" :size="12" />
+          </button>
         </div>
+        <span class="result-count mono">
+          {{ visibleSwatches.length }} {{ locale === 'en' ? 'colors' : '色' }}
+        </span>
         <button
           v-if="activeTab === 'history' && history.length"
           type="button"
@@ -135,21 +151,25 @@ function pickSwatch(hex: string) {
       <div
         v-for="item in visibleSwatches"
         :key="`${activeTab}-${item.hex}-${item.title}`"
+        role="button"
+        tabindex="0"
         class="swatch-card"
         :class="{ 'is-active': item.hex.toUpperCase() === activeHex }"
         @click="pickSwatch(item.hex)"
+        @keydown.enter="pickSwatch(item.hex)"
+        @keydown.space.prevent="pickSwatch(item.hex)"
       >
         <div class="swatch-banner" :style="{ backgroundColor: item.hex }">
           <button
             type="button"
             class="fav-btn"
-            :title="favorites.includes(item.hex) ? (locale === 'en' ? 'Unfavorite' : '取消收藏') : locale === 'en' ? 'Favorite' : '收藏'"
+            :title="favorites.includes(item.hex.toUpperCase()) ? (locale === 'en' ? 'Unfavorite' : '取消收藏') : locale === 'en' ? 'Favorite' : '收藏'"
             @click.stop="emit('toggleFavorite', item.hex)"
           >
             <AppIcon
-              :name="favorites.includes(item.hex) ? 'star-fill' : 'star'"
+              :name="favorites.includes(item.hex.toUpperCase()) ? 'star-fill' : 'star'"
               :size="13"
-              :style="favorites.includes(item.hex) ? { color: '#F59E0B' } : undefined"
+              :style="favorites.includes(item.hex.toUpperCase()) ? { color: '#F59E0B' } : undefined"
             />
           </button>
         </div>
@@ -188,22 +208,23 @@ function pickSwatch(hex: string) {
 .tab-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
 .tab-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 27px;
-  padding: 0 10px;
+  gap: 4px;
+  height: 25px;
+  padding: 0 9px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--bg-subtle);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
+  white-space: nowrap;
   transition: all 0.15s;
 }
 
@@ -219,7 +240,7 @@ function pickSwatch(hex: string) {
 }
 
 .tab-count {
-  font-size: 10.5px;
+  font-size: 10px;
   opacity: 0.8;
 }
 
@@ -233,6 +254,8 @@ function pickSwatch(hex: string) {
   position: relative;
   flex: 1;
   max-width: 280px;
+  display: flex;
+  align-items: center;
 }
 
 .search-icon {
@@ -248,7 +271,32 @@ function pickSwatch(hex: string) {
   width: 100%;
   height: 28px;
   padding-left: 28px;
+  padding-right: 26px;
   font-size: 12px;
+}
+
+.clear-btn {
+  position: absolute;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: background 0.14s, color 0.14s;
+}
+
+.clear-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.result-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 .swatch-grid {

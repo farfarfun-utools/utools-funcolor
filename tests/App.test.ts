@@ -57,4 +57,34 @@ describe('FunColor App UI', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
     wrapper.unmount()
   })
+
+  it('supports keyboard nudging on 2D SV picker, gradient sanitization/random, and library search clear', async () => {
+    const wrapper = mount(App)
+    const sv = wrapper.find('[data-testid="sv-canvas"]')
+    const beforeHex = wrapper.find('.active-hex').text()
+    await sv.trigger('keydown', { key: 'ArrowLeft', shiftKey: true })
+    expect(wrapper.find('.active-hex').text()).not.toBe(beforeHex)
+
+    // Gradient stop validation & random gradient
+    await wrapper.find('[data-testid="nav-gradient"]').trigger('click')
+    const stopInput = wrapper.find('.stop-hex')
+    const validPrev = (stopInput.element as HTMLInputElement).value
+    await stopInput.setValue('not-a-color')
+    await stopInput.trigger('change')
+    expect((stopInput.element as HTMLInputElement).value).toBe(validPrev)
+    expect(wrapper.find('.css-code').text()).not.toContain('not-a-color')
+
+    await wrapper.find('[data-testid="random-gradient-btn"]').trigger('click')
+    expect(wrapper.find('.css-code').text()).toContain('gradient(')
+
+    // Library search & clear
+    await wrapper.find('[data-testid="nav-library"]').trigger('click')
+    const searchInput = wrapper.find('[data-testid="library-search-input"]')
+    await searchInput.setValue('胭脂')
+    expect(wrapper.findAll('.swatch-card').length).toBe(1)
+    await wrapper.find('[data-testid="library-search-clear"]').trigger('click')
+    expect(wrapper.findAll('.swatch-card').length).toBeGreaterThan(10)
+
+    wrapper.unmount()
+  })
 })

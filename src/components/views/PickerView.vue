@@ -5,6 +5,7 @@ import {
   clamp,
   formatAllColorFormats,
   hsvToRgb,
+  nudgeHsv,
   parseColor,
   rgbaToHex,
   rgbToHsv,
@@ -62,14 +63,18 @@ const rgbaCss = computed(
   () => `rgba(${props.color.r}, ${props.color.g}, ${props.color.b}, ${round(props.color.a, 2)})`,
 )
 
-// Composite against white backdrop when transparent to pick crisp contrasting text
+// Composite against neutral checker backdrop when transparent to pick crisp contrasting text
 const effectiveBg = computed(() =>
-  props.color.a < 1 ? compositeOver(props.color, { r: 245, g: 247, b: 250, a: 1 }) : props.color,
+  props.color.a < 1 ? compositeOver(props.color, { r: 240, g: 242, b: 246, a: 1 }) : props.color,
 )
-const isLightSurface = computed(() => relativeLuminance(effectiveBg.value) > 0.36)
+const bgLuminance = computed(() => relativeLuminance(effectiveBg.value))
+const isLightSurface = computed(() => bgLuminance.value > 0.36)
+const isDeepDarkSurface = computed(() => !isLightSurface.value && bgLuminance.value < 0.06)
+const isLowAlphaSurface = computed(() => props.color.a < 0.45)
 const whiteRatio = computed(() => contrastRatio({ r: 255, g: 255, b: 255, a: 1 }, effectiveBg.value))
 const blackRatio = computed(() => contrastRatio({ r: 15, g: 23, b: 42, a: 1 }, effectiveBg.value))
 const nearestSwatch = computed(() => findNearestSwatch(props.color))
+const svValueText = computed(() => `S ${Math.round(hsv.value.s)}%, V ${Math.round(hsv.value.v)}%`)
 
 const formats = computed(() => {
   const all = formatAllColorFormats(props.color)
@@ -103,6 +108,14 @@ function onSvPointerUp(e: PointerEvent) {
   if (!isDraggingSv.value) return
   isDraggingSv.value = false
   updateFromPointer(e.clientX, e.clientY, true)
+}
+
+function onSvKeydown(e: KeyboardEvent) {
+  const next = nudgeHsv(hsv.value, e.key, e.shiftKey)
+  if (!next) return
+  e.preventDefault()
+  hsv.value = next
+  emit('update:color', hsvToRgb(next), true)
 }
 
 function onHueInput(e: Event) {
@@ -151,12 +164,15 @@ function selectQuickHex(hex: string) {
         class="sv-canvas"
         :style="{ backgroundColor: huePureColor }"
         role="slider"
-        :aria-label="locale === 'en' ? 'Saturation and brightness' : '饱和度与明度'"
+        data-testid="sv-canvas"
+        :aria-label="locale === 'en' ? 'Saturation and brightness (Arrow keys to nudge, Shift for 10%)' : '饱和度与明度（方向键微调 1%，Shift+方向键步进 10%）'"
+        :aria-valuetext="svValueText"
         tabindex="0"
         @pointerdown="onSvPointerDown"
         @pointermove="onSvPointerMove"
         @pointerup="onSvPointerUp"
         @pointercancel="onSvPointerUp"
+        @keydown="onSvKeydown"
       >
         <div class="sv-white" />
         <div class="sv-black" />
@@ -327,7 +343,10 @@ function selectQuickHex(hex: string) {
     <!-- Right column: Full-bleed Live Color Immersion + All-Format Converter -->
     <section
       class="picker-right checker-bg"
-      :class="isLightSurface ? 'surface-light' : 'surface-dark'"
+      :class="[
+        isLightSurface ? 'surface-light' : 'surface-dark',
+        { 'surface-deep-dark': isDeepDarkSurface, 'surface-translucent': isLowAlphaSurface },
+      ]"
       data-testid="live-color-stage"
     >
       <div class="live-stage-fill" :style="{ backgroundColor: rgbaCss }">
@@ -347,10 +366,10 @@ function selectQuickHex(hex: string) {
                 ≈ {{ locale === 'en' ? nearestSwatch.nameEn : nearestSwatch.nameZh }}
               </span>
               <span class="glass-pill mono" :title="locale === 'en' ? 'Contrast vs White' : '相对白色对比度'">
-                白 {{ whiteRatio.toFixed(1) }}:1
+                {{ locale === 'en' ? 'W' : '白' }} {{ whiteRatio.toFixed(1) }}:1
               </span>
               <span class="glass-pill mono" :title="locale === 'en' ? 'Contrast vs Black' : '相对深色对比度'">
-                黑 {{ blackRatio.toFixed(1) }}:1
+                {{ locale === 'en' ? 'B' : '黑' }} {{ blackRatio.toFixed(1) }}:1
               </span>
             </div>
           </div>
@@ -648,20 +667,48 @@ function selectQuickHex(hex: string) {
 
 .picker-right.surface-dark {
   --stage-fg: #ffffff;
-  --stage-muted: rgba(255, 255, 255, 0.8);
+  --stage-muted: rgba(255, 255, 255, 0.82);
   --stage-glass: rgba(15, 23, 42, 0.22);
   --stage-glass-hover: rgba(15, 23, 42, 0.36);
   --stage-border: rgba(255, 255, 255, 0.22);
   --stage-seg-active: rgba(255, 255, 255, 0.24);
+  --stage-scroll: rgba(255, 255, 255, 0.34);
+  --stage-scroll-hover: rgba(255, 255, 255, 0.56);
+}
+
+.picker-right.surface-dark.surface-deep-dark {
+  --stage-glass: rgba(255, 255, 255, 0.1);
+  --stage-glass-hover: rgba(255, 255, 255, 0.18);
+  --stage-border: rgba(255, 255, 255, 0.2);
+  --stage-seg-active: rgba(255, 255, 255, 0.22);
 }
 
 .picker-right.surface-light {
   --stage-fg: #0f172a;
   --stage-muted: rgba(15, 23, 42, 0.72);
-  --stage-glass: rgba(255, 255, 255, 0.42);
-  --stage-glass-hover: rgba(255, 255, 255, 0.65);
-  --stage-border: rgba(15, 23, 42, 0.14);
-  --stage-seg-active: rgba(255, 255, 255, 0.75);
+  --stage-glass: rgba(15, 23, 42, 0.065);
+  --stage-glass-hover: rgba(15, 23, 42, 0.12);
+  --stage-border: rgba(15, 23, 42, 0.15);
+  --stage-seg-active: rgba(255, 255, 255, 0.88);
+  --stage-scroll: rgba(15, 23, 42, 0.26);
+  --stage-scroll-hover: rgba(15, 23, 42, 0.45);
+}
+
+.picker-right.surface-translucent {
+  --stage-glass: rgba(255, 255, 255, 0.78);
+  --stage-glass-hover: rgba(255, 255, 255, 0.92);
+  --stage-border: rgba(15, 23, 42, 0.16);
+}
+
+:global(:root[data-theme='dark']) .picker-right.surface-translucent {
+  --stage-fg: #f8fafc;
+  --stage-muted: rgba(248, 250, 252, 0.8);
+  --stage-glass: rgba(15, 23, 42, 0.74);
+  --stage-glass-hover: rgba(15, 23, 42, 0.88);
+  --stage-border: rgba(255, 255, 255, 0.2);
+  --stage-seg-active: rgba(255, 255, 255, 0.22);
+  --stage-scroll: rgba(255, 255, 255, 0.34);
+  --stage-scroll-hover: rgba(255, 255, 255, 0.56);
 }
 
 .live-stage-fill {
@@ -761,9 +808,17 @@ function selectQuickHex(hex: string) {
   flex-direction: column;
   gap: 5px;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 4px;
   min-height: 0;
   flex: 1;
+}
+
+.format-list::-webkit-scrollbar-thumb {
+  background: var(--stage-scroll);
+}
+
+.format-list::-webkit-scrollbar-thumb:hover {
+  background: var(--stage-scroll-hover);
 }
 
 .format-row {

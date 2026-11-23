@@ -454,3 +454,30 @@ export function randomPleasantColor(): RgbaColor {
   const l = 42 + Math.floor(Math.random() * 22)
   return hslToRgb({ h, s, l, a: 1 })
 }
+
+export function nudgeHsv(
+  hsv: HsvColor,
+  key: string,
+  shiftKey = false,
+): HsvColor | null {
+  const step = shiftKey ? 10 : 1
+  if (key === 'ArrowRight') {
+    return { ...hsv, s: round(clamp(hsv.s + step, 0, 100), 1) }
+  }
+  if (key === 'ArrowLeft') {
+    return { ...hsv, s: round(clamp(hsv.s - step, 0, 100), 1) }
+  }
+  if (key === 'ArrowUp') {
+    return { ...hsv, v: round(clamp(hsv.v + step, 0, 100), 1) }
+  }
+  if (key === 'ArrowDown') {
+    return { ...hsv, v: round(clamp(hsv.v - step, 0, 100), 1) }
+  }
+  if (key === 'Home') {
+    return { ...hsv, s: 0 }
+  }
+  if (key === 'End') {
+    return { ...hsv, s: 100 }
+  }
+  return null
+}
